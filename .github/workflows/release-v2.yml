@@ -1,0 +1,58 @@
+name: Release Pizza Planet 2.0.0
+
+on:
+  workflow_run:
+    workflows: ["Build Pizza Planet IPA"]
+    types: [completed]
+    branches: [main]
+
+concurrency:
+  group: pizza-planet-release-v2
+  cancel-in-progress: false
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  release:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download IPA from successful build
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BUILD_ID: ${{ github.event.workflow_run.id }}
+        run: |
+          gh run download "$BUILD_ID" --repo "$GITHUB_REPOSITORY" \
+            --name PizzaPlanet-unsigned-IPA --dir "$RUNNER_TEMP/ipa"
+
+      - name: Verify unsigned v2.0.0 IPA
+        run: |
+          python3 - "$RUNNER_TEMP/ipa/PizzaPlanet-unsigned.ipa" <<'PYTHON'
+          import plistlib
+          import sys
+          from zipfile import ZipFile
+
+          app = "Payload/PizzaPlanet.app/"
+          with ZipFile(sys.argv[1]) as ipa:
+              assert ipa.testzip() is None, "Corrupt IPA"
+              info = plistlib.loads(ipa.read(app + "Info.plist"))
+              assert info["CFBundleShortVersionString"] == "2.0.0", "Unexpected app version"
+              assert ipa.getinfo(app + info["CFBundleExecutable"]).file_size > 0
+              assert not any(path.startswith(app + "_CodeSignature/") for path in ipa.namelist())
+          PYTHON
+
+      - name: Publish v2.0.0 if not already released
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SOURCE_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          if gh release view v2.0.0 --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo 'Release v2.0.0 already exists; leaving it unchanged.'
+            exit 0
+          fi
+          gh release create v2.0.0 "$RUNNER_TEMP/ipa/PizzaPlanet-unsigned.ipa" \
+            --repo "$GITHUB_REPOSITORY" --target "$SOURCE_SHA" \
+            --title "Pizza Planet 2.0.0" \
+            --notes "New: pinch and button zoom, animated pizza pins, name search, 3/8/20-mile search, and richer cartoon styling. Unsigned IPA for KravaSign signing."

@@ -14,6 +14,8 @@ final class PizzaFinder: NSObject, ObservableObject, CLLocationManagerDelegate {
     @Published var position: CLLocationCoordinate2D?
     @Published var selected: PizzaPlace?
     @Published var status = "Looking for pizza near you…"
+    @Published var searchTerm = ""
+    @Published var searchRadiusMiles = 8.0
     @Published var region = MKCoordinateRegion(center: CLLocationCoordinate2D(latitude: 34.3542, longitude: -119.0593), latitudinalMeters: 11000, longitudinalMeters: 11000)
     private let locationManager = CLLocationManager()
     private var lastSearch: CLLocation?
@@ -49,7 +51,8 @@ final class PizzaFinder: NSObject, ObservableObject, CLLocationManagerDelegate {
         position = newest.coordinate
         if let previous = lastSearch, newest.distance(from: previous) < 1200 { return }
         lastSearch = newest
-        region = MKCoordinateRegion(center: newest.coordinate, latitudinalMeters: 9000, longitudinalMeters: 9000)
+        let meters = searchRadiusMiles * 1609.344 * 2
+        region = MKCoordinateRegion(center: newest.coordinate, latitudinalMeters: meters, longitudinalMeters: meters)
         findPizza(around: region)
     }
 
@@ -61,7 +64,8 @@ final class PizzaFinder: NSObject, ObservableObject, CLLocationManagerDelegate {
         search?.cancel()
         status = "Hunting for pizza…"
         let request = MKLocalSearch.Request()
-        request.naturalLanguageQuery = "pizza restaurant"
+        let keyword = searchTerm.trimmingCharacters(in: .whitespacesAndNewlines)
+        request.naturalLanguageQuery = keyword.isEmpty ? "pizza restaurant" : "pizza restaurant \(keyword)"
         request.resultTypes = .pointOfInterest
         request.region = mapRegion
         let task = MKLocalSearch(request: request)
@@ -76,13 +80,21 @@ final class PizzaFinder: NSObject, ObservableObject, CLLocationManagerDelegate {
             // MapKit's search can return loosely related businesses; verify the listing.
             let candidates = response.mapItems.filter { item in
                 let name = (item.name ?? "").lowercased()
-                let category = item.pointOfInterestCategory
-                return category == .restaurant && (name.contains("pizza") || name.contains("pizzeria") || name.contains("pizz"))
-                    || name.contains("pizza") || name.contains("pizzeria")
+                let recognizedPizza = name.contains("pizza") || name.contains("pizzeria") || name.contains("pizz")
+                let match = keyword.isEmpty || name.localizedCaseInsensitiveContains(keyword)
+                return recognizedPizza && match
             }
-            self.places = candidates.map { PizzaPlace(id: "\($0.placemark.coordinate.latitude),\($0.placemark.coordinate.longitude)", item: $0) }
+            let unique = Dictionary(grouping: candidates, by: { "\($0.placemark.coordinate.latitude),\($0.placemark.coordinate.longitude)" })
+            self.places = unique.values.compactMap(\.first).sorted { ($0.name ?? "") < ($1.name ?? "") }
+                .map { PizzaPlace(id: "\($0.placemark.coordinate.latitude),\($0.placemark.coordinate.longitude)", item: $0) }
             self.status = self.places.isEmpty ? "No pizza shops found here. Try another area!" : "\(self.places.count) pizza spots found 🍕"
         }
+    }
+
+    func zoom(by factor: Double) {
+        let latitude = min(60, max(0.0015, region.span.latitudeDelta * factor))
+        let longitude = min(60, max(0.0015, region.span.longitudeDelta * factor))
+        region = MKCoordinateRegion(center: region.center, span: MKCoordinateSpan(latitudeDelta: latitude, longitudeDelta: longitude))
     }
 
     func directions(to place: PizzaPlace) {
@@ -92,14 +104,26 @@ final class PizzaFinder: NSObject, ObservableObject, CLLocationManagerDelegate {
 
 struct PizzaMapScreen: View {
     @StateObject private var finder = PizzaFinder()
+    @State private var animatedCrust = false
 
     var body: some View {
         ZStack {
             PizzaMapView(finder: finder)
                 .ignoresSafeArea()
 
+            Color(red: 1, green: 0.73, blue: 0.25)
+                .opacity(0.10)
+                .ignoresSafeArea()
+                .allowsHitTesting(false)
+
             VStack(spacing: 12) {
                 header
+                searchBar
+                HStack {
+                    radiusPicker
+                    Spacer()
+                    zoomButtons
+                }
                 Spacer()
                 if let place = finder.selected { shopCard(place) }
                 controls
@@ -116,9 +140,12 @@ struct PizzaMapScreen: View {
         VStack(spacing: 4) {
             HStack(spacing: 9) {
                 Text("🍕").font(.system(size: 36))
+                    .rotationEffect(.degrees(animatedCrust ? -12 : 10))
+                    .animation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true), value: animatedCrust)
+                    .onAppear { animatedCrust = true }
                 VStack(alignment: .leading, spacing: 1) {
-                    Text("PIZZA PLANET").font(.system(size: 23, weight: .black, design: .rounded)).tracking(1)
-                    Text("YOUR CHEESY GPS ADVENTURE").font(.system(size: 10, weight: .heavy, design: .rounded)).tracking(1.2)
+                    Text("PIZZA PLANET 2.0").font(.system(size: 21, weight: .black, design: .rounded)).tracking(0.5)
+                    Text("ZOOM • EXPLORE • GET PIZZA!").font(.system(size: 10, weight: .heavy, design: .rounded)).tracking(1.1)
                 }
                 Spacer()
             }
@@ -131,6 +158,65 @@ struct PizzaMapScreen: View {
         .background(Color(red: 1, green: 0.82, blue: 0.36), in: RoundedRectangle(cornerRadius: 23))
         .overlay(RoundedRectangle(cornerRadius: 23).stroke(Color(red: 0.74, green: 0.27, blue: 0.11), lineWidth: 3))
         .shadow(color: .brown.opacity(0.23), radius: 9, y: 5)
+    }
+
+    private var searchBar: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "magnifyingglass")
+            TextField("Search pizza shop name…", text: $finder.searchTerm)
+                .textInputAutocapitalization(.words)
+                .autocorrectionDisabled()
+                .submitLabel(.search)
+                .onSubmit { finder.findPizza(around: finder.region) }
+            if !finder.searchTerm.isEmpty {
+                Button {
+                    finder.searchTerm = ""
+                    finder.findPizza(around: finder.region)
+                } label: { Image(systemName: "xmark.circle.fill") }
+            }
+            Button { finder.findPizza(around: finder.region) } label: {
+                Text("GO").fontWeight(.black)
+            }
+        }
+        .font(.system(size: 15, weight: .semibold, design: .rounded))
+        .foregroundColor(Color(red: 0.43, green: 0.13, blue: 0.08))
+        .padding(13)
+        .background(Color(red: 1, green: 0.95, blue: 0.79), in: Capsule())
+        .overlay(Capsule().stroke(.brown, lineWidth: 2))
+    }
+
+    private var radiusPicker: some View {
+        Menu {
+            ForEach([3.0, 8.0, 20.0], id: \.self) { miles in
+                Button("\(Int(miles)) miles") {
+                    finder.searchRadiusMiles = miles
+                    let meters = miles * 1609.344 * 2
+                    finder.region = MKCoordinateRegion(center: finder.region.center, latitudinalMeters: meters, longitudinalMeters: meters)
+                    finder.findPizza(around: finder.region)
+                }
+            }
+        } label: {
+            Label("\(Int(finder.searchRadiusMiles)) MI", systemImage: "circle.dotted")
+                .font(.system(size: 13, weight: .black, design: .rounded))
+                .padding(12)
+                .background(Color(red: 1, green: 0.87, blue: 0.45), in: Capsule())
+                .overlay(Capsule().stroke(.brown, lineWidth: 2))
+        }
+        .foregroundColor(.brown)
+    }
+
+    private var zoomButtons: some View {
+        VStack(spacing: 5) {
+            Button { finder.zoom(by: 0.5) } label: { Image(systemName: "plus.magnifyingglass") }
+            Divider().frame(width: 33)
+            Button { finder.zoom(by: 2.0) } label: { Image(systemName: "minus.magnifyingglass") }
+        }
+        .font(.system(size: 23, weight: .black))
+        .foregroundColor(Color(red: 0.67, green: 0.17, blue: 0.08))
+        .padding(10)
+        .background(Color(red: 1, green: 0.9, blue: 0.59), in: RoundedRectangle(cornerRadius: 19))
+        .overlay(RoundedRectangle(cornerRadius: 19).stroke(.brown, lineWidth: 2))
+        .accessibilityLabel("Zoom map in or out")
     }
 
     private func shopCard(_ place: PizzaPlace) -> some View {
@@ -164,7 +250,8 @@ struct PizzaMapScreen: View {
             }
             Button {
                 if let coordinate = finder.position {
-                    finder.region = MKCoordinateRegion(center: coordinate, latitudinalMeters: 9000, longitudinalMeters: 9000)
+                    let meters = finder.searchRadiusMiles * 1609.344 * 2
+                    finder.region = MKCoordinateRegion(center: coordinate, latitudinalMeters: meters, longitudinalMeters: meters)
                     finder.findPizza(around: finder.region)
                 } else { finder.start() }
             } label: { Image(systemName: "location.fill").frame(width: 25) }
@@ -188,6 +275,8 @@ struct PizzaMapView: UIViewRepresentable {
         config.pointOfInterestFilter = .excludingAll
         map.preferredConfiguration = config
         map.showsUserLocation = true
+        map.isZoomEnabled = true
+        map.isScrollEnabled = true
         map.delegate = context.coordinator
         map.setRegion(finder.region, animated: false)
         return map
@@ -203,8 +292,9 @@ struct PizzaMapView: UIViewRepresentable {
             }
             context.coordinator.lastIDs = finder.places.map(\.id)
         }
-        let delta = abs(map.region.center.latitude - finder.region.center.latitude) + abs(map.region.center.longitude - finder.region.center.longitude)
-        if delta > 0.025 { map.setRegion(finder.region, animated: true) }
+        let centerDelta = abs(map.region.center.latitude - finder.region.center.latitude) + abs(map.region.center.longitude - finder.region.center.longitude)
+        let zoomDelta = abs(map.region.span.latitudeDelta - finder.region.span.latitudeDelta) / max(finder.region.span.latitudeDelta, 0.001)
+        if centerDelta > 0.005 || zoomDelta > 0.06 { map.setRegion(finder.region, animated: true) }
     }
 
     final class Coordinator: NSObject, MKMapViewDelegate {
@@ -228,6 +318,12 @@ struct PizzaMapView: UIViewRepresentable {
             view.frame = label.bounds
             view.centerOffset = CGPoint(x: 0, y: -22)
             view.canShowCallout = false
+            if !UIAccessibility.isReduceMotionEnabled {
+                label.transform = CGAffineTransform(scaleX: 0.90, y: 0.90)
+                UIView.animate(withDuration: 1.4, delay: Double.random(in: 0...0.5), options: [.autoreverse, .repeat, .allowUserInteraction]) {
+                    label.transform = .identity
+                }
+            }
             return view
         }
 
