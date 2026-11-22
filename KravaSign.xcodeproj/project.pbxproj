@@ -1,0 +1,29 @@
+// !$*UTF8*$!
+{
+ archiveVersion = 1;
+ classes = {};
+ objectVersion = 56;
+ objects = {
+  000000000000000000000065 /* KravaSignApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KravaSignApp.swift; sourceTree = "<group>"; };
+  000000000000000000000066 /* PizzaMapScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PizzaMapScreen.swift; sourceTree = "<group>"; };
+  000000000000000000000067 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+  000000000000000000000068 /* PizzaPlanet.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PizzaPlanet.app; sourceTree = BUILT_PRODUCTS_DIR; };
+  0000000000000000000000C9 = {isa = PBXBuildFile; fileRef = 000000000000000000000065; };
+  0000000000000000000000CA = {isa = PBXBuildFile; fileRef = 000000000000000000000066; };
+  00000000000000000000012D = {isa = PBXGroup; children = (00000000000000000000012E, 000000000000000000000068); sourceTree = "<group>"; };
+  00000000000000000000012E = {isa = PBXGroup; path = KravaSign; children = (000000000000000000000065, 000000000000000000000066, 000000000000000000000067); sourceTree = "<group>"; };
+  00000000000000000000012F = {isa = PBXGroup; name = Products; children = (000000000000000000000068); sourceTree = "<group>"; };
+  000000000000000000000191 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (0000000000000000000000C9, 0000000000000000000000CA); runOnlyForDeploymentPostprocessing = 0; };
+  000000000000000000000192 = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+  000000000000000000000193 = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+  0000000000000000000001F5 = {isa = PBXNativeTarget; buildConfigurationList = 00000000000000000000025A; buildPhases = (000000000000000000000191, 000000000000000000000192, 000000000000000000000193); buildRules = (); dependencies = (); name = PizzaPlanet; productName = PizzaPlanet; productReference = 000000000000000000000068; productType = "com.apple.product-type.application"; };
+  0000000000000000000001F6 = {isa = PBXProject; attributes = { BuildIndependentTargetsInParallel = YES; LastUpgradeCheck = 1500; TargetAttributes = { 0000000000000000000001F5 = { CreatedOnToolsVersion = 15.0; }; }; }; buildConfigurationList = 000000000000000000000259; compatibilityVersion = "Xcode 14.0"; developmentRegion = en; hasScannedForEncodings = 0; knownRegions = (en, Base); mainGroup = 00000000000000000000012D; productRefGroup = 00000000000000000000012F; projectDirPath = ""; projectRoot = ""; targets = (0000000000000000000001F5); };
+  000000000000000000000259 = {isa = XCConfigurationList; buildConfigurations = (0000000000000000000002BD, 0000000000000000000002BE); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+  00000000000000000000025A = {isa = XCConfigurationList; buildConfigurations = (0000000000000000000002BF, 0000000000000000000002C0); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+  0000000000000000000002BD = {isa = XCBuildConfiguration; buildSettings = { IPHONEOS_DEPLOYMENT_TARGET = 16.0; SDKROOT = iphoneos; SWIFT_VERSION = 5.0; }; name = Debug; };
+  0000000000000000000002BE = {isa = XCBuildConfiguration; buildSettings = { IPHONEOS_DEPLOYMENT_TARGET = 16.0; SDKROOT = iphoneos; SWIFT_VERSION = 5.0; }; name = Release; };
+  0000000000000000000002BF = {isa = XCBuildConfiguration; buildSettings = { ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 1; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = KravaSign/Info.plist; IPHONEOS_DEPLOYMENT_TARGET = 16.0; MARKETING_VERSION = 1.0; PRODUCT_BUNDLE_IDENTIFIER = com.pizzaplanet.tracker; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = "1,2"; SUPPORTS_MACCATALYST = NO; }; name = Debug; };
+  0000000000000000000002C0 = {isa = XCBuildConfiguration; buildSettings = { ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 1; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = KravaSign/Info.plist; IPHONEOS_DEPLOYMENT_TARGET = 16.0; MARKETING_VERSION = 1.0; PRODUCT_BUNDLE_IDENTIFIER = com.pizzaplanet.tracker; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = "1,2"; SUPPORTS_MACCATALYST = NO; }; name = Release; };
+ };
+ rootObject = 0000000000000000000001F6;
+}
