@@ -1,0 +1,45 @@
+name: Build Pizza Planet IPA
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: macos-15
+    permissions:
+      contents: read
+    steps:
+      - name: Download source
+        uses: actions/checkout@v4
+
+      - name: Match game folder spelling
+        run: |
+          if [ -d Kravasign ] && [ ! -d KravaSign ]; then mv Kravasign KravaSign; fi
+
+      - name: Build iPhone app without signing
+        run: |
+          xcodebuild \
+            -project KravaSign.xcodeproj \
+            -scheme PizzaPlanet \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath "$RUNNER_TEMP/PizzaBuild" \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+      - name: Package unsigned IPA for KravaSign
+        run: |
+          mkdir -p "$RUNNER_TEMP/Payload"
+          cp -R "$RUNNER_TEMP/PizzaBuild/Build/Products/Release-iphoneos/PizzaPlanet.app" "$RUNNER_TEMP/Payload/"
+          cd "$RUNNER_TEMP"
+          zip -qry "$GITHUB_WORKSPACE/PizzaPlanet-unsigned.ipa" Payload
+
+      - name: Downloadable IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: PizzaPlanet-unsigned-IPA
+          path: PizzaPlanet-unsigned.ipa
+          retention-days: 14
